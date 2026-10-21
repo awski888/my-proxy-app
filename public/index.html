@@ -139,16 +139,16 @@
             <button class="nav-btn" onclick="reloadFrame()" title="Reload">↻</button>
             
             <div class="address-bar-wrapper">
-                <input type="text" id="urlInput" class="address-bar" placeholder="Enter URL or search term (e.g. games, wikipedia.org)..." onkeydown="handleKeyPress(event)">
+                <input type="text" id="urlInput" class="address-bar" placeholder="Enter URL or search query (e.g. games, wikipedia.org)..." onkeydown="handleKeyPress(event)">
             </div>
             
             <button class="go-btn" onclick="navigate()">Go</button>
-            <div class="ip-badge" id="ipDisplay">IP: Loading...</div>
+            <div class="ip-badge" id="ipDisplay">Proxy IP: Anonymous</div>
         </div>
 
         <div class="quick-links">
             <span style="color: var(--text-muted);">Shortcuts:</span>
-            <span class="chip" onclick="quickNav('https://duckduckgo.com')">DuckDuckGo</span>
+            <span class="chip" onclick="quickNav('https://html.duckduckgo.com/html/')">DuckDuckGo</span>
             <span class="chip" onclick="quickNav('https://www.wikipedia.org')">Wikipedia</span>
             <span class="chip" onclick="quickNav('https://news.ycombinator.com')">Hacker News</span>
             <span class="chip" onclick="quickNav('https://bing.com')">Bing</span>
@@ -159,19 +159,8 @@
     <iframe id="viewport" src="about:blank" onload="finishLoading()"></iframe>
 
     <script>
-        async function fetchIP() {
-            try {
-                const res = await fetch('/api/my-ip');
-                const data = await res.json();
-                document.getElementById('ipDisplay').innerText = `Proxy IP: ${data.ip}`;
-            } catch {
-                document.getElementById('ipDisplay').innerText = `Proxy IP: Offline`;
-            }
-        }
-
         function startLoading() {
-            const loader = document.getElementById('loader');
-            loader.style.width = '70%';
+            document.getElementById('loader').style.width = '70%';
         }
 
         function finishLoading() {
@@ -188,7 +177,7 @@
 
             let targetUrl = input;
             if (!input.includes('.') || input.includes(' ')) {
-                targetUrl = `https://duckduckgo.com/?q=${encodeURIComponent(input)}`;
+                targetUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(input)}`;
             } else if (!/^https?:\/\//i.test(input)) {
                 targetUrl = 'https://' + input;
             }
@@ -218,8 +207,6 @@
         function historyForward() {
             try { document.getElementById('viewport').contentWindow.history.forward(); } catch (e) {}
         }
-
-        fetchIP();
     </script>
 </body>
 </html>
