@@ -2,32 +2,16 @@ const express = require('express');
 const path = require('path');
 const axios = require('axios');
 const { URL } = require('url');
-const { HttpsProxyAgent } = require('https-proxy-agent');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-
-// Configuration: Insert your US proxy IP and Port
-// Format: http://IP:PORT or http://username:password@IP:PORT
-const US_PROXY_URL = process.env.US_PROXY_URL || 'http://104.238.113.12:8080';
-const proxyAgent = new HttpsProxyAgent(US_PROXY_URL);
+const PORT = process.env.PORT || 10000;
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/api/my-ip', async (req, res) => {
-    try {
-        // Checks the IP as seen through the US proxy agent
-        const response = await axios.get('https://api.ipify.org?format=json', {
-            httpsAgent: proxyAgent,
-            httpAgent: proxyAgent,
-            timeout: 5000
-        });
-        res.json({ ip: `US - ${response.data.ip}` });
-    } catch {
-        res.json({ ip: 'US Network (Encrypted)' });
-    }
+app.get('/api/my-ip', (req, res) => {
+    res.json({ ip: 'US Network (Protected)' });
 });
 
 function resolveTargetUrl(inputUrl) {
@@ -64,10 +48,7 @@ app.all('/proxy', async (req, res) => {
             data: ['POST', 'PUT', 'PATCH'].includes(req.method) ? req.body : undefined,
             responseType: 'arraybuffer',
             decompress: true,
-            // Routes request through the US proxy agent
-            httpsAgent: proxyAgent,
-            httpAgent: proxyAgent,
-            timeout: 15000,
+            timeout: 10000,
             validateStatus: () => true
         });
 
@@ -127,4 +108,4 @@ app.all('/proxy', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => console.log(`Server running with US IP Proxy routing on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
