@@ -2,16 +2,32 @@ const express = require('express');
 const path = require('path');
 const axios = require('axios');
 const { URL } = require('url');
+const { HttpsProxyAgent } = require('https-proxy-agent');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Configuration: Insert your US proxy IP and Port
+// Format: http://IP:PORT or http://username:password@IP:PORT
+const US_PROXY_URL = process.env.US_PROXY_URL || 'http://104.238.113.12:8080';
+const proxyAgent = new HttpsProxyAgent(US_PROXY_URL);
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/api/my-ip', (req, res) => {
-    res.json({ ip: 'Protected (Encrypted)' });
+app.get('/api/my-ip', async (req, res) => {
+    try {
+        // Checks the IP as seen through the US proxy agent
+        const response = await axios.get('https://api.ipify.org?format=json', {
+            httpsAgent: proxyAgent,
+            httpAgent: proxyAgent,
+            timeout: 5000
+        });
+        res.json({ ip: `US - ${response.data.ip}` });
+    } catch {
+        res.json({ ip: 'US Network (Encrypted)' });
+    }
 });
 
 function resolveTargetUrl(inputUrl) {
@@ -48,10 +64,13 @@ app.all('/proxy', async (req, res) => {
             data: ['POST', 'PUT', 'PATCH'].includes(req.method) ? req.body : undefined,
             responseType: 'arraybuffer',
             decompress: true,
+            // Routes request through the US proxy agent
+            httpsAgent: proxyAgent,
+            httpAgent: proxyAgent,
+            timeout: 15000,
             validateStatus: () => true
         });
 
-        // Strip headers that interfere with decompression state or iframe embedding
         const headersToStrip = [
             'content-encoding',
             'content-length',
@@ -69,14 +88,12 @@ app.all('/proxy', async (req, res) => {
 
         const contentType = response.headers['content-type'] || '';
 
-        // Serve non-text assets directly
         if (!contentType.includes('text/html') && !contentType.includes('text/css') && !contentType.includes('application/javascript')) {
             return res.status(response.status).send(Buffer.from(response.data));
         }
 
         let content = Buffer.from(response.data).toString('utf-8');
 
-        // Rewrite HTML links and inject <base> tag
         if (contentType.includes('text/html')) {
             const baseTag = `<base href="${parsedTarget.href}">`;
             if (content.includes('<head>')) {
@@ -96,7 +113,6 @@ app.all('/proxy', async (req, res) => {
             });
         }
 
-        // Rewrite CSS paths
         if (contentType.includes('text/css') || contentType.includes('text/html')) {
             content = content.replace(/url\((['"]?)(?!https?:\/\/\vert{}\/\/\vert{}data:)([^'"\)]+)\1\)/gi, (match, quote, p1) => {
                 const abs = new URL(p1, parsedTarget.href).href;
@@ -111,4 +127,4 @@ app.all('/proxy', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running with US IP Proxy routing on port ${PORT}`));
