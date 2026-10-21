@@ -3,42 +3,220 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Proxy Browser</title>
+    <title>Modern Proxy Browser</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-        body { background: #0f172a; color: #f8fafc; height: 100vh; display: flex; flex-direction: column; }
-        .toolbar { background: #1e293b; padding: 10px; display: flex; gap: 10px; align-items: center; }
-        .address-bar { flex-grow: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; }
-        .btn { padding: 8px 16px; background: #38bdf8; border: none; border-radius: 6px; color: #0f172a; font-weight: bold; cursor: pointer; }
-        .ip-tag { font-size: 12px; color: #38bdf8; padding: 4px 8px; border: 1px solid #38bdf8; border-radius: 12px; }
-        iframe { flex-grow: 1; border: none; background: #fff; }
+        :root {
+            --bg-primary: #0b0f19;
+            --bg-secondary: #151c2c;
+            --accent: #38bdf8;
+            --accent-hover: #0284c7;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #1e293b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', system-ui, sans-serif; }
+        body { background: var(--bg-primary); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        .browser-header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .controls-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            background: #1e293b;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 16px;
+        }
+
+        .nav-btn:hover { background: #334155; border-color: var(--accent); }
+
+        .address-bar-wrapper {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        .address-bar {
+            width: 100%;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 14px;
+            color: var(--text-main);
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .address-bar:focus { border-color: var(--accent); }
+
+        .go-btn {
+            background: var(--accent);
+            color: #0b0f19;
+            font-weight: 600;
+            padding: 0 18px;
+            height: 36px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .go-btn:hover { background: var(--accent-hover); }
+
+        .quick-links {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .chip {
+            background: #1e293b;
+            color: var(--text-muted);
+            padding: 4px 10px;
+            border-radius: 14px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .chip:hover { color: var(--text-main); border-color: var(--border); }
+
+        .ip-badge {
+            margin-left: auto;
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--accent);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 4px 10px;
+            border-radius: 14px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .loader-bar {
+            height: 3px;
+            width: 0%;
+            background: var(--accent);
+            transition: width 0.3s ease;
+        }
+
+        iframe {
+            flex-grow: 1;
+            border: none;
+            background: #ffffff;
+            width: 100%;
+            height: 100%;
+        }
     </style>
 </head>
 <body>
 
-    <div class="toolbar">
-        <input type="text" id="urlInput" class="address-bar" placeholder="Enter site (e.g. example.com)" onkeydown="if(event.key==='Enter') loadPage()">
-        <button class="btn" onclick="loadPage()">Go</button>
-        <div class="ip-tag" id="ipDisplay">IP: Loading...</div>
+    <div class="browser-header">
+        <div class="controls-row">
+            <button class="nav-btn" onclick="historyBack()" title="Back">←</button>
+            <button class="nav-btn" onclick="historyForward()" title="Forward">→</button>
+            <button class="nav-btn" onclick="reloadFrame()" title="Reload">↻</button>
+            
+            <div class="address-bar-wrapper">
+                <input type="text" id="urlInput" class="address-bar" placeholder="Enter URL or search term (e.g. games, wikipedia.org)..." onkeydown="handleKeyPress(event)">
+            </div>
+            
+            <button class="go-btn" onclick="navigate()">Go</button>
+            <div class="ip-badge" id="ipDisplay">IP: Loading...</div>
+        </div>
+
+        <div class="quick-links">
+            <span style="color: var(--text-muted);">Shortcuts:</span>
+            <span class="chip" onclick="quickNav('https://duckduckgo.com')">DuckDuckGo</span>
+            <span class="chip" onclick="quickNav('https://www.wikipedia.org')">Wikipedia</span>
+            <span class="chip" onclick="quickNav('https://news.ycombinator.com')">Hacker News</span>
+            <span class="chip" onclick="quickNav('https://bing.com')">Bing</span>
+        </div>
     </div>
 
-    <iframe id="view"></iframe>
+    <div class="loader-bar" id="loader"></div>
+    <iframe id="viewport" src="about:blank" onload="finishLoading()"></iframe>
 
     <script>
         async function fetchIP() {
             try {
                 const res = await fetch('/api/my-ip');
                 const data = await res.json();
-                document.getElementById('ipDisplay').innerText = `IP: ${data.ip}`;
-            } catch (e) {
-                document.getElementById('ipDisplay').innerText = `IP: Error`;
+                document.getElementById('ipDisplay').innerText = `Proxy IP: ${data.ip}`;
+            } catch {
+                document.getElementById('ipDisplay').innerText = `Proxy IP: Offline`;
             }
         }
 
-        function loadPage() {
-            let url = document.getElementById('urlInput').value.trim();
-            if (!url) return;
-            document.getElementById('view').src = `/proxy?url=${encodeURIComponent(url)}`;
+        function startLoading() {
+            const loader = document.getElementById('loader');
+            loader.style.width = '70%';
+        }
+
+        function finishLoading() {
+            const loader = document.getElementById('loader');
+            loader.style.width = '100%';
+            setTimeout(() => { loader.style.width = '0%'; }, 300);
+        }
+
+        function navigate() {
+            let input = document.getElementById('urlInput').value.trim();
+            if (!input) return;
+
+            startLoading();
+
+            let targetUrl = input;
+            if (!input.includes('.') || input.includes(' ')) {
+                targetUrl = `https://duckduckgo.com/?q=${encodeURIComponent(input)}`;
+            } else if (!/^https?:\/\//i.test(input)) {
+                targetUrl = 'https://' + input;
+            }
+
+            document.getElementById('viewport').src = `/proxy?url=${encodeURIComponent(targetUrl)}`;
+        }
+
+        function quickNav(url) {
+            document.getElementById('urlInput').value = url;
+            navigate();
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') navigate();
+        }
+
+        function reloadFrame() {
+            startLoading();
+            const frame = document.getElementById('viewport');
+            frame.src = frame.src;
+        }
+
+        function historyBack() {
+            try { document.getElementById('viewport').contentWindow.history.back(); } catch (e) {}
+        }
+
+        function historyForward() {
+            try { document.getElementById('viewport').contentWindow.history.forward(); } catch (e) {}
         }
 
         fetchIP();
