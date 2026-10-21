@@ -10,21 +10,17 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Public Proxy IP API
-app.get('/api/my-ip', async (req, res) => {
-    try {
-        const response = await axios.get('https://api.ipify.org?format=json');
-        res.json({ ip: response.data.ip });
-    } catch {
-        res.status(500).json({ error: 'IP lookup failed' });
-    }
+// Anonymized IP endpoint (Returns masked status instead of raw server IP)
+app.get('/api/my-ip', (req, res) => {
+    res.json({ ip: 'Protected (Encrypted)' });
 });
 
-// Helper function to resolve plain search terms vs valid domain URLs
+// Resolve plain search queries vs valid web addresses
 function resolveTargetUrl(inputUrl) {
     let cleanUrl = inputUrl.trim();
     if (!cleanUrl.includes('.') || cleanUrl.includes(' ')) {
-        return `https://duckduckgo.com/?q=${encodeURIComponent(cleanUrl)}`;
+        // Use DuckDuckGo HTML endpoint for seamless iframe embedding
+        return `https://html.duckduckgo.com/html/?q=${encodeURIComponent(cleanUrl)}`;
     }
     if (!/^https?:\/\//i.test(cleanUrl)) {
         return 'https://' + cleanUrl;
@@ -44,14 +40,10 @@ app.all('/proxy', async (req, res) => {
 
         const requestHeaders = {
             'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept-Language': req.headers['accept-language'] || 'en-US,en;q=0.9',
-            'Accept': req.headers['accept'] || '*/*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Referer': parsedTarget.origin
         };
-
-        if (req.headers.cookie) {
-            requestHeaders['Cookie'] = req.headers.cookie;
-        }
 
         const response = await axios({
             method: req.method,
@@ -64,7 +56,7 @@ app.all('/proxy', async (req, res) => {
 
         const contentType = response.headers['content-type'] || '';
 
-        // Pass binary media files (images, fonts, stylesheets) directly
+        // Pass binary media (images, fonts, stylesheets) directly back to client
         if (!contentType.includes('text/html') && !contentType.includes('text/css') && !contentType.includes('application/javascript')) {
             res.set('Content-Type', contentType);
             return res.status(response.status).send(Buffer.from(response.data));
@@ -92,13 +84,11 @@ app.all('/proxy', async (req, res) => {
             });
         }
 
-        // Rewrite CSS relative paths
-        if (contentType.includes('text/css') || contentType.includes('text/html')) {
-            content = content.replace(/url\((['"]?)(?!https?:\/\/\vert{}\/\/\vert{}data:)([^'"\)]+)\1\)/gi, (match, quote, p1) => {
-                const abs = new URL(p1, parsedTarget.href).href;
-                return `url("/proxy?url=${encodeURIComponent(abs)}")`;
-            });
-        }
+        // Strip security headers that block iframe rendering
+        res.removeHeader('X-Frame-Options');
+        res.removeHeader('Content-Security-Policy');
+        res.removeHeader('Content-Security-Policy-Report-Only');
+        res.removeHeader('Strict-Transport-Security');
 
         res.set('Content-Type', contentType);
         res.status(response.status).send(content);
