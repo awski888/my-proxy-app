@@ -1,13 +1,13 @@
 {
-  "name": "modern-proxy-browser",
+  "name": "my-proxy-app",
   "version": "1.0.0",
-  "description": "Modern web proxy application with automatic search fallback",
+  "description": "Modern Web Proxy",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
- "dependencies": {
-  "axios": "^1.6.0",
-  "express": "^4.18.2",
-  "https-proxy-agent": "^7.0.2"
+  "dependencies": {
+    "axios": "^1.6.0",
+    "express": "^4.18.2"
+  }
 }
